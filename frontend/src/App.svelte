@@ -92,18 +92,21 @@ function closeComments() {
   showCommentsFor = null;
 }
 
+let isModerator = false;
 
-  async function fetchUser()
-  {
-    try {
-      const res = await fetch('/api/user');
-      const data = await res.json();
-      user = data.user || null;
+async function fetchUser() {
+  try {
+    const res = await fetch('/api/user');
+    const data = await res.json();
+    user = data.user || null;
+
+    if (user?.email === 'moderator@hw3.com' || user?.email === 'admin@hw3.com') {
+      isModerator = true;
     }
-     catch (err) {
-      console.error('Error fetching user:', err);
-    }
+  } catch (err) {
+    console.error('Error fetching user:', err);
   }
+}
 
   // Submit a comment
   async function submitComment(url: string) {
@@ -139,6 +142,39 @@ function closeComments() {
   alert("Error submitting comment.");
 }
   }
+
+  async function deleteComment(commentId: string) {
+  try {
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Remove it from the UI
+      comments[showCommentsFor] = comments[showCommentsFor].filter(c => c._id !== commentId);
+    }
+  } catch (err) {
+    console.error("Failed to delete comment:", err);
+  }
+}
+
+async function redactComment(commentId: string) {
+  try {
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ redact: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Replace the redacted comment in UI
+      const comment = comments[showCommentsFor].find(c => c._id === commentId);
+      if (comment) comment.text = '█'.repeat(20); // Or update using response if returned
+    }
+  } catch (err) {
+    console.error("Failed to redact comment:", err);
+  }
+}
 
 
   // FOR COMMENTS
@@ -285,10 +321,10 @@ function closeComments() {
       <div class="comment-item">
         <strong>{comment.user}</strong>
         <p>{comment.text}</p>
-        {#if user && user.email === 'moderator@hw3.com'}
-          <button>Delete</button>
-          <button>Redact</button>
-        {/if}
+        {#if isModerator}
+      <button on:click={() => deleteComment(comment._id)}>Delete</button>
+      <button on:click={() => redactComment(comment._id)}>Redact</button>
+    {/if}
       </div>
     {/each}
   {:else}

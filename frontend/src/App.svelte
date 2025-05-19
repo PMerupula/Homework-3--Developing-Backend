@@ -45,6 +45,57 @@
   let showCommentsFor: string | null = null;
   let user: any = null;
 
+  let redactingCommentId: string | null = null;
+let redactSelection: Record<string, string> = {};  // Store temporary redacted text per comment ID
+
+let editingCommentId: string | null = null;
+let editingText: string = '';
+
+function startRedaction(comment) {
+  editingCommentId = comment._id;
+  editingText = comment.text;
+}
+
+function cancelRedaction() {
+  editingCommentId = null;
+  editingText = '';
+}
+
+async function submitRedaction(commentId: string, articleUrl: string) {
+  const textarea = document.querySelector('textarea');
+  const selectionStart = textarea?.selectionStart;
+  const selectionEnd = textarea?.selectionEnd;
+
+  if (selectionStart == null || selectionEnd == null || selectionStart === selectionEnd) {
+    alert("Please select text to redact.");
+    return;
+  }
+
+  const selected = editingText.substring(selectionStart, selectionEnd);
+  const redacted = editingText.substring(0, selectionStart) + '█'.repeat(selected.length) + editingText.substring(selectionEnd);
+
+  try {
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: redacted })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Update local state
+      const target = comments[articleUrl].find(c => c._id === commentId);
+      if (target) target.text = redacted;
+
+      cancelRedaction();
+    } else {
+      alert("Failed to redact comment.");
+    }
+  } catch (err) {
+    console.error("Redact error:", err);
+  }
+}
+
   async function fetchCommentsForArticle(url: string) {
   try {
     const res = await fetch(`/api/comments?url=${encodeURIComponent(url)}`);
@@ -347,101 +398,47 @@ async function redactComment(commentId: string, articleUrl: string) {
     {/if}
   </div>
 
-  <!-- ✅ ADD THIS OUTSIDE THE {#each} loop, at the end of grid-container -->
-{#if showCommentsFor}
-<div class="comment-panel">
-  <button class="close-btn" on:click={closeComments}>✖</button>
-  <h3>Comments</h3>
+  {#if showCommentsFor}
+  <div class="comment-panel">
+    <button class="close-btn" on:click={closeComments}>✖</button>
+    <h3>Comments</h3>
 
-  {#if comments[showCommentsFor]?.length}
-  {#each comments[showCommentsFor] as comment}
+    {#if comments[showCommentsFor]?.length}
+      {#each comments[showCommentsFor] as comment}
   <div class="comment-item">
     <strong>{comment.user}</strong>
-    <p>{comment.text}</p>
-    <small>{comment.timestamp}</small> <!-- ADD THIS for debugging -->
-    <small>{comment._id}</small> <!-- ADD THIS for debugging -->
-    {#if isModerator}
-      <!-- <button on:click={() => deleteComment(comment._id, showCommentsFor)}>Delete</button> -->
-      <button on:click={() => deleteComment(comment._id, showCommentsFor!)}>Delete</button>
+
+    {#if editingCommentId === comment._id}
+      <textarea bind:value={editingText} rows="3"></textarea>
+      <button on:click={() => submitRedaction(comment._id, showCommentsFor!)}>Submit</button>
+      <button on:click={cancelRedaction}>Cancel</button>
+    {:else}
+      <p>{comment.text}</p>
+      <small>{comment.timestamp}</small>
+
+      {#if isModerator}
+        <button on:click={() => startRedaction(comment)}>Redact</button>
+        <button on:click={() => deleteComment(comment._id, showCommentsFor!)}>Delete</button>
+      {/if}
     {/if}
   </div>
 {/each}
-  {:else}
-    <p>No comments yet.</p>
-  {/if}
+    {:else}
+      <p>No comments yet.</p>
+    {/if}
 
-  <textarea bind:value={newComments[showCommentsFor]} rows="3" placeholder="Write your comment..."></textarea>
-  <button on:click={() => submitComment(showCommentsFor)}>Post Comment</button>
-</div>
+    <textarea
+      bind:value={newComments[showCommentsFor]}
+      rows="3"
+      placeholder="Write your comment..."
+    ></textarea>
+    <button on:click={() => submitComment(showCommentsFor!)}>Post Comment</button>
+  </div>
 {/if}
+
 
   <hr />
   <footer>
     <p> &copy; 2025 The New York Times (Prince and Ayden)</p>
   </footer>
 </main>
-
-<!-- <script lang="ts">
-  import { onMount } from 'svelte';
-  import svelteLogo from './assets/svelte.svg';
-  import viteLogo from '/vite.svg';
-  import Counter from './lib/Counter.svelte';
-
-  let apiKey: string = '';
-
-  onMount(async () => {
-    try {
-      const res = await fetch('/api/key');
-      const data = await res.json();
-      apiKey = data.apiKey;
-    } catch (error) {
-      console.error('Failed to fetch API key:', error);
-    }
-  }); 
-</script>
-
-<main>
-  <div>
-    <a href="https://vite.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
-
-  <div class="card">
-    <Counter />
-  </div>
-
-  <p>
-    Your API Key: <strong>{apiKey}</strong>
-  </p>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
-</main>
-
-<style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
-</style> -->

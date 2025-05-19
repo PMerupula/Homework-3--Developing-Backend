@@ -7,6 +7,8 @@ from flask import Flask, redirect, url_for, session
 from authlib.integrations.flask_client import OAuth
 from authlib.common.security import generate_token
 
+from bson.objectid import ObjectId
+
 # loads environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv(dotenv_path="./.env")
@@ -98,14 +100,6 @@ def get_articles():
     except requests.RequestException as e:
         return jsonify({'error': str(e)}), 500
     
-# @app.route('/api/user')
-# def get_user():
-#     user = session.get('user')
-#     if user:
-#         return jsonify({'user': user})
-#     else:
-#         return jsonify({'user': None})
-
 @app.route('/api/user')
 def get_user():
     user = session.get('user')
@@ -207,54 +201,6 @@ def trimArticleData(sourceArticles:list):
 
 comments_by_url = {}  # Dictionary mapping article URL to list of comments
 
-# @app.route('/api/comments', methods=['GET'])
-# def get_comments():
-#     url = request.args.get('url')
-#     return jsonify(comments_by_url.get(url, []))
-
-# @app.route('/api/comments', methods=['POST'])
-# def post_comment():
-#     user = session.get('user')
-#     if not user:
-#         return jsonify({'error': 'Unauthorized'}), 401
-
-#     data = request.get_json()
-#     url = data.get('url')
-#     text = data.get('text')
-
-#     if not url or not text:
-#         return jsonify({'error': 'Missing url or text'}), 400
-
-#     comment = {
-#         'user': user['email'],
-#         'text': text
-#     }
-
-#     comments_by_url.setdefault(url, []).append(comment)
-#     return jsonify({'success': True})
-
-
-# @app.route('/login')
-# def login():
-#     session['nonce'] = nonce
-#     redirect_uri = 'http://localhost:8000/authorize'
-#     return oauth.flask_app.authorize_redirect(redirect_uri, nonce=nonce)
-
-# @app.route('/authorize')
-# def authorize():
-#     token = oauth.flask_app.authorize_access_token()
-#     nonce = session.get('nonce')
-
-#     user_info = oauth.flask_app.parse_id_token(token, nonce=nonce)  # or use .get('userinfo').json()
-#     session['user'] = user_info
-#     return redirect('/')
-
-# @app.route('/logout')
-# def logout():
-#     session.clear()
-#     return redirect('/')
-
-
 
 @app.route('/')
 
@@ -272,7 +218,7 @@ def authorize():
     user_info = oauth.flask_app.parse_id_token(token, nonce=nonce)  # or use .get('userinfo').json()
     session['user'] = user_info
     #return redirect('/')
-    return redirect('http://localhost:5173') # For development ONLY
+    return redirect('http://localhost:5173') # For development 
 
 @app.route('/logout')
 def logout():
@@ -349,35 +295,6 @@ def is_moderator():
     user = session.get('user')
     return user and user.get('email') in ['moderator@hw3.com', 'admin@hw3.com']
 
-# @app.route('/api/comments/<comment_id>', methods=['DELETE'])
-# def delete_comment(comment_id):
-#     if not is_moderator():
-#         return jsonify({'error': 'Unauthorized'}), 401
-
-#     result = comments_collection.delete_one({'_id': ObjectId(comment_id)})
-#     if result.deleted_count == 1:
-#         return jsonify({'success': True})
-#     else:
-#         return jsonify({'error': 'Comment not found'}), 404
-
-from bson.objectid import ObjectId
-
-# @app.route('/api/comments/delete/<comment_id>', methods=['POST'])
-# def delete_comment(comment_id):
-#     user = session.get('user')
-#     if not user or user['email'] not in ['admin@hw3.com', 'moderator@hw3.com']:
-#         return jsonify({'error': 'Unauthorized'}), 401
-
-#     result = comments_collection.update_one(
-#         {'_id': ObjectId(comment_id)},
-#         {'$set': {'text': 'COMMENT REMOVED BY MODERATOR'}}
-#     )
-
-#     if result.matched_count == 0:
-#         return jsonify({'error': 'Comment not found'}), 404
-
-#     return jsonify({'success': True})
-
 @app.route('/api/comments/delete/<comment_id>', methods=['POST'])
 def delete_comment(comment_id):
     user = session.get('user')
@@ -400,22 +317,25 @@ def delete_comment(comment_id):
     )
 
     return jsonify({'success': result.modified_count == 1})
-    
+
 @app.route('/api/comments/<comment_id>', methods=['PATCH'])
 def redact_comment(comment_id):
-    if not is_moderator():
+    user = session.get('user')
+    if not user or user['email'] not in ['admin@hw3.com', 'moderator@hw3.com']:
         return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json()
-    if not data.get('redact'):
-        return jsonify({'error': 'Invalid request'}), 400
+    new_text = data.get('text')
+
+    if not new_text:
+        return jsonify({'error': 'Missing redacted text'}), 400
 
     result = comments_collection.update_one(
         {'_id': ObjectId(comment_id)},
-        {'$set': {'text': '█' * 20}}  # Redact with U+2588 blocks
+        {'$set': {'text': new_text}}
     )
 
-    if result.matched_count == 1:
-        return jsonify({'success': True})
-    else:
+    if result.matched_count == 0:
         return jsonify({'error': 'Comment not found'}), 404
+
+    return jsonify({'success': True})

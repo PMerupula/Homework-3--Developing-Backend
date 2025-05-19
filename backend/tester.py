@@ -136,26 +136,6 @@ def test_getComments(client):
 def test_post_comment(client):
     print("Testing post_comment...", end=" ")
 
-
-	response = client.get('/api/testing/fetchArticles/\
-		https://api.nytimes.com/svc/search/v2/articlesearch.json/\
-		{}/\
-		sacramento/\
-		timesTag.location:"California"\
-		'.format(os.getenv('NYT_API_KEY'))
-	)
-
-	status = response.status_code
-	data = response.get_json()
-	
-	if data == []:
-		print("Failed!")
-		print("\tStatus code: {}".format(status))
-		return
-	print("Passed!")
-
-	
-    
     # Set the user session
     with client.session_transaction() as session:
         session['user'] = {'email': 'test@example.com'}

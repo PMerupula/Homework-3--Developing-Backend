@@ -79,8 +79,13 @@ onMount(async () => {
   }
 });
 
-function openComments(articleUrl: string) {
+async function openComments(articleUrl: string) {
   showCommentsFor = articleUrl;
+
+  // Fetch comments if they haven't been loaded yet
+  if (!comments[articleUrl]) {
+    await fetchCommentsForArticle(articleUrl);
+  }
 }
 
 function closeComments() {

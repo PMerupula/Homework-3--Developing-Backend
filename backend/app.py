@@ -1,15 +1,12 @@
-from flask import Flask, jsonify, send_from_directory, request
-import os
-import requests # We import the requests library to make HTTP requests to the NYT API
+import os, requests
+from flask import \
+    Flask, jsonify, send_from_directory, request, \
+    redirect, url_for, session
 from flask_cors import CORS
-
-from flask import Flask, redirect, url_for, session
 from authlib.integrations.flask_client import OAuth
 from authlib.common.security import generate_token
 
-from bson.objectid import ObjectId
-
-# loads environment variables from .env file
+# load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv(dotenv_path="./.env")
 
@@ -18,23 +15,20 @@ template_path = os.getenv('TEMPLATE_PATH','templates')
 
 app = Flask(__name__, static_folder=static_path, template_folder=template_path)
 app.secret_key = os.urandom(24)
-
 oauth = OAuth(app)
 nonce = generate_token()
 
-client_name = os.getenv('OIDC_CLIENT_NAME')
-
 oauth.register(
-    name=os.getenv('OIDC_CLIENT_NAME'),
-    client_id=os.getenv('OIDC_CLIENT_ID'),
-    client_secret=os.getenv('OIDC_CLIENT_SECRET'),
+    name = os.getenv('OIDC_CLIENT_NAME'),
+    client_id = os.getenv('OIDC_CLIENT_ID'),
+    client_secret = os.getenv('OIDC_CLIENT_SECRET'),
     #server_metadata_url='http://dex:5556/.well-known/openid-configuration',
-    authorization_endpoint="http://localhost:5556/auth",
-    token_endpoint="http://dex:5556/token",
-    jwks_uri="http://dex:5556/keys",
-    userinfo_endpoint="http://dex:5556/userinfo",
-    device_authorization_endpoint="http://dex:5556/device/code",
-    client_kwargs={'scope': 'openid email profile'}
+    authorization_endpoint = "http://localhost:5556/auth",
+    token_endpoint = "http://dex:5556/token",
+    jwks_uri = "http://dex:5556/keys",
+    userinfo_endpoint = "http://dex:5556/userinfo",
+    device_authorization_endpoint =" http://dex:5556/device/code",
+    client_kwargs = {'scope': 'openid email profile'}
 )
 
 ROLE_MAP = {
@@ -42,7 +36,6 @@ ROLE_MAP = {
     'moderator@hw3.com': 'moderator',
     'user@hw3.com': 'user'
 }
-
 CORS(app)
 
 # Defined so that we can just call NYT_API_KEY instead of os.getenv('NYT_API_KEY')
@@ -99,7 +92,7 @@ def get_articles():
     
     except requests.RequestException as e:
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/api/user')
 def get_user():
     user = session.get('user')
@@ -201,9 +194,7 @@ def trimArticleData(sourceArticles:list):
 
 comments_by_url = {}  # Dictionary mapping article URL to list of comments
 
-
 @app.route('/')
-
 @app.route('/login')
 def login():
     session['nonce'] = nonce
@@ -217,8 +208,7 @@ def authorize():
 
     user_info = oauth.flask_app.parse_id_token(token, nonce=nonce)  # or use .get('userinfo').json()
     session['user'] = user_info
-    #return redirect('/')
-    return redirect('http://localhost:5173') # For development 
+    return redirect('http://localhost:5173')  # dev only
 
 @app.route('/logout')
 def logout():
@@ -248,7 +238,7 @@ def get_comments():
     if not url:
         return jsonify({'error': 'Missing article URL'}), 400
 
-    # Get comments for this article
+    # get comments for this article
     comment_docs = comments_collection.find({'url': url})
     comment_list = []
     for c in comment_docs:
@@ -294,6 +284,8 @@ from flask import abort
 def is_moderator():
     user = session.get('user')
     return user and user.get('email') in ['moderator@hw3.com', 'admin@hw3.com']
+
+from bson.objectid import ObjectId
 
 @app.route('/api/comments/delete/<comment_id>', methods=['POST'])
 def delete_comment(comment_id):

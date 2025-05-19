@@ -3,9 +3,8 @@ import './app.css'
 import App from './App.svelte'
 
 const app = mount(App, {
-  target: document.getElementById('app')!,
+	target: document.getElementById('app')!,
 });
-
 export default app;
 
 /* 
@@ -13,7 +12,7 @@ export default app;
  */
 
 /* 
- * **Sets Today's Date** (Carryover from Homework 1)
+ * **Sets Today's Date** (Carryover from Prince's Homework 1)
  * Code to dynamically set the date (gets the element at "current-date").
  * Referred to ChatGPT on the specific location it should be placed in the code. 
  * I initially planned on having a separate script.js file, but figured that scripting within the same HTML file would likely be sufficient due to the relative simplicity.
@@ -101,13 +100,3 @@ function updateTicker()
 
   // Rotate every 5 seconds
   setInterval(updateTicker, 5000);
-
-// import { mount } from 'svelte'
-// import './app.css'
-// import App from './App.svelte'
-
-// const app = mount(App, {
-//   target: document.getElementById('app')!,
-// })
-
-// export default app

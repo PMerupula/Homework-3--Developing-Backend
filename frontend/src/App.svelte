@@ -32,7 +32,14 @@
   let loading = false;
   let error = '';
 
-  let comments: Record<string, string[]> = {};
+  interface Comment {
+  _id: string;
+  user: string;
+  text: string;
+  timestamp: string;
+}
+
+  let comments: Record<string, Comment[]> = {};
   let newComments: Record<string, string> = {};
 
   let showCommentsFor: string | null = null;
@@ -131,7 +138,8 @@ async function fetchUser() {
   {
     comments[url] = [];
   }
-  comments[url].push({ user: user.email, text });
+  // comments[url].push({ user: user.email, text });
+  comments[url].push(data.comment);  // Use comment returned from backend with _id
   await fetchCommentsForArticle(url); // Refresh comments after posting
   newComments[url] = '';
 } else {
@@ -143,22 +151,51 @@ async function fetchUser() {
 }
   }
 
-  async function deleteComment(commentId: string) {
+  async function deleteComment(commentId: string, articleUrl: string) {
+  console.log("Trying to delete comment with ID:", commentId, "for article:", articleUrl);
+
   try {
-    const res = await fetch(`/api/comments/${commentId}`, {
-      method: 'DELETE'
+    const res = await fetch(`/api/comments/delete/${commentId}`, {
+      method: 'POST'
     });
+
     const data = await res.json();
+    console.log("Server response from DELETE:", data);
+
     if (data.success) {
-      // Remove it from the UI
-      comments[showCommentsFor] = comments[showCommentsFor].filter(c => c._id !== commentId);
+      await fetchCommentsForArticle(articleUrl); // Refresh the full comment list from backend
+      console.log("Updated comment list:", comments[articleUrl]);
+    } else {
+      alert('Failed to delete comment');
     }
   } catch (err) {
-    console.error("Failed to delete comment:", err);
+    console.error('Error deleting comment:', err);
+    alert('Error deleting comment');
   }
 }
 
-async function redactComment(commentId: string) {
+//   async function deleteComment(commentId: string, articleUrl: string) {
+//   try {
+//     const res = await fetch(`/api/comments/${commentId}`, {
+//       method: 'DELETE'
+//     });
+//     const data = await res.json();
+//     if (data.success) {
+//       if (comments[articleUrl]) {
+//         comments[articleUrl] = comments[articleUrl].map((c: Comment) =>
+//           c._id === commentId ? { ...c, text: "COMMENT REMOVED BY MODERATOR" } : c
+//         );
+//       }
+//     } else {
+//       alert('Failed to delete comment');
+//     }
+//   } catch (err) {
+//     console.error('Error deleting comment:', err);
+//     alert('Error deleting comment');
+//   }
+// }
+
+async function redactComment(commentId: string, articleUrl: string) {
   try {
     const res = await fetch(`/api/comments/${commentId}`, {
       method: 'PATCH',
@@ -166,15 +203,15 @@ async function redactComment(commentId: string) {
       body: JSON.stringify({ redact: true })
     });
     const data = await res.json();
-    if (data.success) {
-      // Replace the redacted comment in UI
-      const comment = comments[showCommentsFor].find(c => c._id === commentId);
-      if (comment) comment.text = '█'.repeat(20); // Or update using response if returned
+    if (data.success && comments[articleUrl]) {
+      comments[articleUrl] = comments[articleUrl].map((c: Comment) =>
+        c._id === commentId ? { ...c, text: '█'.repeat(20) } : c
+      );
     }
   } catch (err) {
     console.error("Failed to redact comment:", err);
   }
-}
+} 
 
 
   // FOR COMMENTS
@@ -317,16 +354,18 @@ async function redactComment(commentId: string) {
   <h3>Comments</h3>
 
   {#if comments[showCommentsFor]?.length}
-    {#each comments[showCommentsFor] as comment}
-      <div class="comment-item">
-        <strong>{comment.user}</strong>
-        <p>{comment.text}</p>
-        {#if isModerator}
-      <button on:click={() => deleteComment(comment._id)}>Delete</button>
-      <button on:click={() => redactComment(comment._id)}>Redact</button>
+  {#each comments[showCommentsFor] as comment}
+  <div class="comment-item">
+    <strong>{comment.user}</strong>
+    <p>{comment.text}</p>
+    <small>{comment.timestamp}</small> <!-- ADD THIS for debugging -->
+    <small>{comment._id}</small> <!-- ADD THIS for debugging -->
+    {#if isModerator}
+      <!-- <button on:click={() => deleteComment(comment._id, showCommentsFor)}>Delete</button> -->
+      <button on:click={() => deleteComment(comment._id, showCommentsFor!)}>Delete</button>
     {/if}
-      </div>
-    {/each}
+  </div>
+{/each}
   {:else}
     <p>No comments yet.</p>
   {/if}

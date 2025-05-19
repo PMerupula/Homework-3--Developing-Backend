@@ -337,8 +337,10 @@ def post_comment():
         'timestamp': datetime.utcnow()
     }
 
-    comments_collection.insert_one(comment)
-    return jsonify({'success': True})
+    result = comments_collection.insert_one(comment)
+    comment['_id'] = str(result.inserted_id)  # Include the inserted ID as a string
+
+    return jsonify({'success': True, 'comment': comment})
 
 from bson.objectid import ObjectId
 from flask import abort
@@ -347,16 +349,57 @@ def is_moderator():
     user = session.get('user')
     return user and user.get('email') in ['moderator@hw3.com', 'admin@hw3.com']
 
-@app.route('/api/comments/<comment_id>', methods=['DELETE'])
+# @app.route('/api/comments/<comment_id>', methods=['DELETE'])
+# def delete_comment(comment_id):
+#     if not is_moderator():
+#         return jsonify({'error': 'Unauthorized'}), 401
+
+#     result = comments_collection.delete_one({'_id': ObjectId(comment_id)})
+#     if result.deleted_count == 1:
+#         return jsonify({'success': True})
+#     else:
+#         return jsonify({'error': 'Comment not found'}), 404
+
+from bson.objectid import ObjectId
+
+# @app.route('/api/comments/delete/<comment_id>', methods=['POST'])
+# def delete_comment(comment_id):
+#     user = session.get('user')
+#     if not user or user['email'] not in ['admin@hw3.com', 'moderator@hw3.com']:
+#         return jsonify({'error': 'Unauthorized'}), 401
+
+#     result = comments_collection.update_one(
+#         {'_id': ObjectId(comment_id)},
+#         {'$set': {'text': 'COMMENT REMOVED BY MODERATOR'}}
+#     )
+
+#     if result.matched_count == 0:
+#         return jsonify({'error': 'Comment not found'}), 404
+
+#     return jsonify({'success': True})
+
+@app.route('/api/comments/delete/<comment_id>', methods=['POST'])
 def delete_comment(comment_id):
-    if not is_moderator():
+    user = session.get('user')
+    if not user or user['email'] not in ['admin@hw3.com', 'moderator@hw3.com']:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    result = comments_collection.delete_one({'_id': ObjectId(comment_id)})
-    if result.deleted_count == 1:
-        return jsonify({'success': True})
-    else:
+    comment = comments_collection.find_one({'_id': ObjectId(comment_id)})
+    if not comment:
         return jsonify({'error': 'Comment not found'}), 404
+
+    # Prevent moderators from deleting other moderators' or admin's comments
+    author_email = comment.get('user')
+    if author_email in ['admin@hw3.com', 'moderator@hw3.com'] and user['email'] != author_email:
+        return jsonify({'error': 'Cannot delete comments by other moderators/admins'}), 403
+
+    # Perform the soft delete
+    result = comments_collection.update_one(
+        {'_id': ObjectId(comment_id)},
+        {'$set': {'text': 'COMMENT REMOVED BY MODERATOR'}}
+    )
+
+    return jsonify({'success': result.modified_count == 1})
     
 @app.route('/api/comments/<comment_id>', methods=['PATCH'])
 def redact_comment(comment_id):

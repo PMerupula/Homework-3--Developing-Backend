@@ -1,15 +1,29 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import "./app.css";
-    // Primary frontend scripts will be stored in main.ts
-  
-    //let articles: any[] = [];
-  
+    
+    // --------------------
+    // TYPE DEFINITIONS
+    // --------------------
+    
+    // Comment interface for each comment object
+    interface Comment {
+      _id: string;
+      user: string;        // email of user (kept for backend compatibility)
+      username?: string;   // optional display name (for showing on frontend)
+      text: string;        // comment content
+      timestamp: string;   // UTC timestamp
+    }
+    
+    // --------------------
+    // APPLICATION STATE
+    // --------------------
+    
     let articles: any[] = [
+      // Placeholder mock articles (will be overwritten by real API data)
       {
         headline: "Mock Article 1",
-        abstract:
-          "This is a placeholder abstract for the first article. Lorem Ipsum solor dis ament or whatever and whateer and whateer.ofekfoekfoke.  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+        abstract: "This is a placeholder abstract for the first article...",
         url: "https://example.com/article1",
         pub_date: "2025-05-18T12:00:00Z",
         image_url: null,
@@ -29,142 +43,31 @@
         image_url: null,
       },
     ];
-  
-    let loading = false;
-    let error = "";
-  
-    interface Comment {
-      _id: string;
-      user: string;
-      text: string;
-      timestamp: string;
-    }
-  
-    let comments: Record<string, Comment[]> = {};
-    let newComments: Record<string, string> = {};
-  
-    let showCommentsFor: string | null = null;
-    let user: any = null;
-  
-    let redactingCommentId: string | null = null;
-    let redactSelection: Record<string, string> = {}; // Store temporary redacted text per comment ID
-  
-    let editingCommentId: string | null = null;
-    let editingText: string = "";
-  
-    function startRedaction(comment) {
-      editingCommentId = comment._id;
-      editingText = comment.text;
-    }
-  
-    function cancelRedaction() {
-      editingCommentId = null;
-      editingText = "";
-    }
-  
-    async function submitRedaction(commentId: string, articleUrl: string) {
-      const textarea = document.querySelector("textarea");
-      const selectionStart = textarea?.selectionStart;
-      const selectionEnd = textarea?.selectionEnd;
-  
-      if (
-        selectionStart == null ||
-        selectionEnd == null ||
-        selectionStart === selectionEnd
-      ) {
-        alert("Please select text to redact.");
-        return;
-      }
-  
-      const selected = editingText.substring(selectionStart, selectionEnd);
-      const redacted =
-        editingText.substring(0, selectionStart) +
-        "█".repeat(selected.length) +
-        editingText.substring(selectionEnd);
-  
-      try {
-        const res = await fetch(`/api/comments/${commentId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: redacted }),
-        });
-        const data = await res.json();
-  
-        if (data.success) {
-          // Update local state
-          const target = comments[articleUrl].find((c) => c._id === commentId);
-          if (target) target.text = redacted;
-  
-          cancelRedaction();
-        } else {
-          alert("Failed to redact comment.");
-        }
-      } catch (err) {
-        console.error("Redact error:", err);
-      }
-    }
-  
-    async function fetchCommentsForArticle(url: string) {
-      try {
-        const res = await fetch(`/api/comments?url=${encodeURIComponent(url)}`);
-        const data = await res.json();
-        comments[url] = data.comments || [];
-      } catch (err) {
-        console.error(`Failed to fetch comments for ${url}:`, err);
-        comments[url] = [];
-      }
-    }
-  
-    onMount(async () => {
-      try {
-        const userRes = await fetch("/api/user");
-        const userData = await userRes.json();
-        user = userData.user || null;
-  
-        const articleRes = await fetch("/api/articles");
-        const articleData = await articleRes.json();
-  
-        if (articleData.articles && articleData.articles.length > 0) {
-          articles = articleData.articles;
-  
-          await Promise.all(
-            articles.map(async (article) => {
-              await fetchCommentsForArticle(article.url);
-              newComments[article.url] = "";
-            }),
-          );
-        } else {
-          //error = 'No articles found.';
-        }
-      } catch (err) {
-        console.error("Error fetching articles or user:", err);
-        error = "Failed to load articles.";
-      } finally {
-        loading = false;
-      }
-    });
-  
-    async function openComments(articleUrl: string) {
-      showCommentsFor = articleUrl;
-  
-      // Fetch comments if they haven't been loaded yet
-      if (!comments[articleUrl]) {
-        await fetchCommentsForArticle(articleUrl);
-      }
-    }
-  
-    function closeComments() {
-      showCommentsFor = null;
-    }
-  
-    let isModerator = false;
-  
+    
+    let loading = false;             // Whether articles are loading
+    let error = "";                  // Error message to display
+    let comments: Record<string, Comment[]> = {};  // Maps article URLs to their list of comments
+    let newComments: Record<string, string> = {};  // Tracks new comment content per article
+    let showCommentsFor: string | null = null;     // Currently visible comment panel
+    let user: any = null;            // Logged-in user data from session
+    let isModerator = false;         // Whether the user has mod privileges
+    
+    // Redaction UI state
+    let editingCommentId: string | null = null;     // ID of comment being redacted
+    let editingText: string = "";                   // Temp text for redaction
+    
+    // --------------------
+    // USER & ROLE HELPERS
+    // --------------------
+    
+    // Fetch logged-in user info from backend session
     async function fetchUser() {
       try {
         const res = await fetch("/api/user");
         const data = await res.json();
         user = data.user || null;
-  
+    
+        // Determine if user is a moderator
         if (
           user?.email === "moderator@hw3.com" ||
           user?.email === "admin@hw3.com"
@@ -175,17 +78,33 @@
         console.error("Error fetching user:", err);
       }
     }
-  
-    // Submit a comment
+    
+    // --------------------
+    // COMMENT HANDLING
+    // --------------------
+    
+    // Fetch all comments for a given article URL
+    async function fetchCommentsForArticle(url: string) {
+      try {
+        const res = await fetch(`/api/comments?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        comments[url] = data.comments || [];
+      } catch (err) {
+        console.error(`Failed to fetch comments for ${url}:`, err);
+        comments[url] = [];
+      }
+    }
+    
+    // Submit a new comment to the backend
     async function submitComment(url: string) {
       if (!user) {
         alert("You must be logged in to post comments.");
         return;
       }
-  
+    
       const text = newComments[url];
       if (!text.trim()) return;
-  
+    
       try {
         const res = await fetch("/api/comments", {
           method: "POST",
@@ -193,13 +112,11 @@
           body: JSON.stringify({ url, text }),
         });
         const data = await res.json();
-        console.log("POST result:", data); // Add this line
+    
         if (data.success) {
-          if (!comments[url]) {
-            comments[url] = [];
-          }
-          comments[url].push(data.comment); // Use comment returned from backend with _id
-          await fetchCommentsForArticle(url); // Refresh comments after posting
+          if (!comments[url]) comments[url] = [];
+          comments[url].push(data.comment);  // Add the newly created comment
+          await fetchCommentsForArticle(url); // Refresh the list
           newComments[url] = "";
         } else {
           alert("Failed to post comment.");
@@ -209,26 +126,16 @@
         alert("Error submitting comment.");
       }
     }
-  
+    
+    // Perform a soft delete (replace text with mod notice)
     async function deleteComment(commentId: string, articleUrl: string) {
-      console.log(
-        "Trying to delete comment with ID:",
-        commentId,
-        "for article:",
-        articleUrl,
-      );
-  
       try {
         const res = await fetch(`/api/comments/delete/${commentId}`, {
           method: "POST",
         });
-  
         const data = await res.json();
-        console.log("Server response from DELETE:", data);
-  
         if (data.success) {
-          await fetchCommentsForArticle(articleUrl); // Refresh the full comment list from backend
-          console.log("Updated comment list:", comments[articleUrl]);
+          await fetchCommentsForArticle(articleUrl);
         } else {
           alert("Failed to delete comment");
         }
@@ -237,7 +144,57 @@
         alert("Error deleting comment");
       }
     }
-  
+    
+    // Open redaction mode for a comment
+    function startRedaction(comment: Comment) {
+      editingCommentId = comment._id;
+      editingText = comment.text;
+    }
+    
+    // Cancel redaction UI
+    function cancelRedaction() {
+      editingCommentId = null;
+      editingText = "";
+    }
+    
+    // Submit redacted content to backend (partial redact)
+    async function submitRedaction(commentId: string, articleUrl: string) {
+      const textarea = document.querySelector("textarea");
+      const selectionStart = textarea?.selectionStart;
+      const selectionEnd = textarea?.selectionEnd;
+    
+      if (!selectionStart || !selectionEnd || selectionStart === selectionEnd) {
+        alert("Please select text to redact.");
+        return;
+      }
+    
+      const selected = editingText.substring(selectionStart, selectionEnd);
+      const redacted =
+        editingText.substring(0, selectionStart) +
+        "█".repeat(selected.length) +
+        editingText.substring(selectionEnd);
+    
+      try {
+        const res = await fetch(`/api/comments/${commentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: redacted }),
+        });
+        const data = await res.json();
+    
+        if (data.success) {
+          const comment = comments[articleUrl].find((c) => c._id === commentId);
+          if (comment) comment.text = redacted;
+          cancelRedaction();
+        } else {
+          alert("Failed to redact comment.");
+        }
+      } catch (err) {
+        console.error("Redact error:", err);
+      }
+    }
+    
+    // Optional full-comment redact fallback
     async function redactComment(commentId: string, articleUrl: string) {
       try {
         const res = await fetch(`/api/comments/${commentId}`, {
@@ -246,45 +203,58 @@
           body: JSON.stringify({ redact: true }),
         });
         const data = await res.json();
+    
         if (data.success && comments[articleUrl]) {
           comments[articleUrl] = comments[articleUrl].map((c: Comment) =>
-            c._id === commentId ? { ...c, text: "█".repeat(20) } : c,
+            c._id === commentId ? { ...c, text: "█".repeat(20) } : c
           );
         }
       } catch (err) {
         console.error("Failed to redact comment:", err);
       }
     }
-  
+    
+    // --------------------
+    // UI EVENT HANDLERS
+    // --------------------
+    
+    function closeComments() {
+      showCommentsFor = null;
+    }
+    
+    async function openComments(articleUrl: string) {
+      showCommentsFor = articleUrl;
+      if (!comments[articleUrl]) {
+        await fetchCommentsForArticle(articleUrl);
+      }
+    }
+    
+    // --------------------
+    // APP LIFECYCLE INIT
+    // --------------------
+    
     onMount(async () => {
       await fetchUser();
-  
+    
       try {
         const res = await fetch("/api/articles");
         const data = await res.json();
-  
-        if (data.articles && data.articles.length > 0) {
+    
+        if (data.articles?.length > 0) {
           articles = data.articles;
-  
           await Promise.all(
             articles.map(async (article) => {
-              const res = await fetch(
-                `/api/comments?url=${encodeURIComponent(article.url)}`,
-              );
-              const data = await res.json();
-              comments[article.url] = data.comments || [];
+              await fetchCommentsForArticle(article.url);
               newComments[article.url] = "";
-            }),
+            })
           );
-        } else {
-          //error = 'No articles found.';
         }
       } catch (err) {
-        console.error("Error fetching articles:", err);
+        console.error("Error fetching articles or user:", err);
         error = "Failed to load articles.";
       } finally {
         loading = false;
       }
     });
-  </script>
-  
+    </script>
+    

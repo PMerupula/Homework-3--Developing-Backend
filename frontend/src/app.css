@@ -1,4 +1,288 @@
-:root {
+/* 
+ * Contents of this file taken entirely from my (Prince's) Homework 1 submission. 
+ * Originally contained in styles.css in the original file. HTML, CSS, and TypeScript code are separated out for clarity and organization.
+ */
+
+/* Gets and defines/declares the EnglishTowne font (will be used for the main header/title on the front page--the part where it says "The New York Times"). */
+@font-face 
+{
+    /* Specifies the name of the font-family (English Towne). Chose English Towne over Chomsky as the lowercase "s" when using Chomsky looked wrong, despite using different files. */
+    font-family: 'EnglishTowne';
+    /* 
+     * Specifies the path to the font file and the format of the file. 
+     * Is able to get it like this as EnglishTowne.ttf was placed in the /public folder.
+     */
+    src: url('EnglishTowne.ttf') format('truetype'); 
+    /* Sets the font's weight, or how thin/thick it is. */
+    font-weight: lighter;
+    /* Specifies the font style--normal would be the default for the font (as opposed to, say, italic). */
+    font-style: normal;
+}
+
+body 
+{
+    /* Margin refers to the amount of space around the elements outside the box. For consistency and readability, the margin properties for each side will be explictly specified. */
+    margin: 0px 0px 0px 0px;
+    /* Padding refers to the amount of inside space around the elements. For consistency and readability, the padding properties for each side will be explictly specified. */
+    padding: 0px 0px 0px 0px;
+    /* Sets the background color of the body to white (#ffffff). */
+    background-color: #ffffff;
+    /* Sets the color of the elements and text in the body to black (#000000). */
+    color: #000000;
+    /* Text in the body is set to Helvetica Neue by default (will be overrided in the article contents to Georgia). Font choice matches what is specified in the Week 3 Discussion Slides. */
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* Styles the language bar at the top of the page. Intended to broadly match the US, International, Spanish, etc. pages on the New York Times front page. */
+.language-bar 
+{
+  position: relative;
+  padding: 10px 10px 0px 10px;
+  background-color: white;
+  /* border-bottom: 1px solid #ccc; */
+  text-align: center;
+    /* display: flex;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    padding: 5px 10px 5px 10px;  */
+}
+
+.language-nav{
+  display: inline-flex;
+  gap: 12px;
+  /* justify-content: center; */
+  justify-content: center;
+}
+
+/* Styles the buttons in the language bar. I made it so that when not clicked, it looks like regular text (matching the NYT site) */
+/* .language-button
+{
+    background-color: #ffffff;
+    border: 0px;
+} */
+
+
+.language-button {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.auth-nav {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-button {
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: #000;
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.middle-bar
+{
+    /* Allows for child elements to be absolutely positioned relative to the middle-bar container */
+    position: relative;
+    /* Arranges the child elements to be in a flexbox row */
+    display: flex;
+    /* Pushes the left and right elements to the ends of the container, optimizing the amount of space in between */
+    justify-content: space-between;
+    /* Vertically centers the elements */
+    align-items: center;
+    /* Sets the padding (more padding on the sides than the top and bottom) */
+    padding: 15px 20px 15px 20px;
+    flex-wrap: wrap;
+}
+
+/* Overarching styles for the left part (includes the date and the "today's paper" component) */
+.left
+{
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+#current-date
+{
+    margin: 0px 0px 0px 0px;
+}
+
+.todays-paper
+{
+    display: inline-block;
+    margin-top: 4px;
+    color: #000000;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+/*  Styles for the title on the front page. Specified the font earlier, and manually centered it as I ran into issues having it center dynamically. */
+.main-title
+{
+    font-family: 'EnglishTowne', serif;
+    font-size: 48px;
+    text-align: center;
+    display: flex;
+    flex: 1;
+    margin: 0px 0px 0px 0px;
+    position: absolute;
+    
+    left: 50%;
+    transform: translateX(-50%);
+    /* Above 2 lines basically say make the left-most part of the text be 50% from the left and then to manually move the text 50% to the left */
+}
+
+/* Defines the styles for the right part of the main central bar. */
+.right 
+{
+    flex: 1;
+    align-items: center;
+    text-align: right;
+    line-height: 1.2;
+    font-size: 0.9rem;
+    color: #303030;
+}
+
+/* I define the stock-ticker styles and the colors for when it's up or down. */
+.stock-ticker 
+{
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 0.9rem;
+    text-align: right;
+    color: #303030;
+    min-height: 1.5em;
+    /* Got this portion suggested by ChatGPT */
+    transition: opacity 0.5s ease-in-out;
+}
+  
+.stock-ticker.fade-out 
+{
+    opacity: 0;
+}
+  
+.stock-ticker.fade-in 
+{
+    opacity: 1;
+}
+  
+.stock-up 
+{
+    color: green;
+}
+  
+.stock-down 
+{
+    color: red;
+}
+  
+.stock-name 
+{
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* === Navigation Bar === */
+.main-nav {
+    display: flex;
+    flex-wrap: wrap; 
+    justify-content: center;
+    gap: 15px;
+    padding: 0px 0px 10px 0px;
+    font-size: 0.95rem;
+    /* Double lined black border below */
+    border-bottom: 3px double #000000; 
+  }
+  
+  .main-nav a {
+    text-decoration: none;
+    color: #000;
+    font-weight: 500;
+  }
+  
+  .main-nav a:hover {
+    text-decoration: underline;
+  }
+  
+
+/* Here's the contents of the styles for the main grid container for the articles. */
+.grid-container 
+{
+    /* Uses the grid container */
+    display: grid;
+    padding: 0px 0px 0px 0px;
+    /* I got the font specifications from the Week 3 Discussion slides */
+    font-family: 'Georgia', serif;
+
+}
+
+/* Mobile View (1 column) */
+.grid-container
+{
+    /* By default, assumes that the view will be that of the mobile view. Sets the one column to take up the entire page. (as intended when on a mobile device). The "1fr" refers to 1 fractional unit. */
+    grid-template-columns: 1fr;
+}
+  
+/* Tablet view (2 columns) */
+/* Media queries allow for us to dynamically set styles based on attributes like the width of the page. Below, we assign the number of columns to be 2 if the width is between 768 and 1023 px. */
+@media (min-width: 768px) and (max-width: 1023px) 
+{
+    .grid-container 
+    {
+        /* Sets 2 equally sized columns (2 fractional units of equal size) */
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop: 3 columns */
+/* Media queries explained above. Here, we set it to be 3 columns if the device/browser width is 1024 px or greater. */
+@media (min-width: 1024px) 
+{
+    .grid-container 
+    {
+        /* Sets 3 equally sized columns (3 fractional units of equal size) */
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Sets  */
+.column
+{
+    padding: 15px 15px 15px 15px;
+    align-items: center;
+    border-right: 1px solid #D9D9D9;
+    box-sizing: border-box;
+}
+
+.column:last-child 
+{
+    border-right: none;
+}
+
+/* === Responsive Images === */
+.article-image 
+{
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+
+
+/* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -76,4 +360,31 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+} */
+
+.comment-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 35%;
+  height: 100vh;
+  background-color: #f8f8f8;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.close-btn {
+  float: right;
+  font-size: 1.2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.comment-item {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.5rem;
 }

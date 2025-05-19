@@ -313,7 +313,7 @@ def delete_comment(comment_id):
     # Perform the soft delete
     result = comments_collection.update_one(
         {'_id': ObjectId(comment_id)},
-        {'$set': {'text': 'COMMENT REMOVED BY MODERATOR'}}
+        {'$set': {'text': 'Comment was removed by a moderator'}}
     )
 
     return jsonify({'success': result.modified_count == 1})

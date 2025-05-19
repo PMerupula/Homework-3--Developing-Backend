@@ -1,0 +1,5 @@
+We did use AI in this project, specifically ChatGPT. We certainly used it more than the previous homework assignments, but we were definitely not reliant. 
+
+The primary things we used it for was ideation for things like the flow/API routing and then also as an aide for troubleshooting. We ran into some issues with setup (due in part to some errors in the starter code, like the client name being 'Flask App' when the code expected it to be 'flask_app')
+
+It was not as helpful as we'd hoped, but it certainly did help us save some time on fixing our errors and figuring out the best way to approach this homework.
